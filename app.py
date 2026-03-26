@@ -8,57 +8,209 @@ import streamlit as st
 
 st.set_page_config(page_title="Scout Comparison App", layout="wide")
 
-# =========================
-# STYLES
-# =========================
 st.markdown("""
 <style>
-.block-container {padding-top: 1rem; padding-bottom: 2rem;}
-.card {
-    background: linear-gradient(180deg, #171a21 0%, #11141b 100%);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 16px 18px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+:root{
+  --bg:#0f1117;
+  --card:#171a21;
+  --card2:#11141b;
+  --line:rgba(255,255,255,0.08);
+  --muted:#9aa4b2;
+  --blue:#3b82f6;
+  --blue2:#60a5fa;
+  --green:#10b981;
+  --green2:#34d399;
 }
-.small-muted {color:#9aa4b2; font-size: 0.92rem;}
-.legend-dot {
-    display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:8px;
+
+.block-container{
+  padding-top:1rem;
+  padding-bottom:2rem;
+  max-width:1400px;
 }
-.metric-row {margin-bottom: 10px;}
-.metric-label {font-weight:600; margin-bottom:4px;}
-.bar-wrap {display:flex; gap:14px; align-items:center;}
-.bar-box {
-    flex:1;
-    background:#0d1117;
-    border:1px solid rgba(255,255,255,0.07);
-    border-radius:10px;
-    height:18px;
-    overflow:hidden;
+
+html, body, [data-testid="stAppViewContainer"]{
+  background:var(--bg);
 }
-.bar-fill-blue {
-    height:100%;
-    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+
+.card{
+  background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
 }
-.bar-fill-green {
-    height:100%;
-    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+
+.small-muted{
+  color:var(--muted);
+  font-size:0.92rem;
 }
-.value-label {
-    width:72px;
-    text-align:right;
-    font-size:0.92rem;
+
+.legend-dot{
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  margin-right:8px;
 }
-.section-title {
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+
+.metric-row{margin-bottom:10px;}
+.metric-label{font-weight:600; margin-bottom:4px;}
+.bar-wrap{display:flex; gap:14px; align-items:center;}
+.bar-box{
+  flex:1;
+  background:#0d1117;
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:10px;
+  height:18px;
+  overflow:hidden;
+}
+.bar-fill-blue{
+  height:100%;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--blue2) 100%);
+}
+.bar-fill-green{
+  height:100%;
+  background: linear-gradient(90deg, var(--green) 0%, var(--green2) 100%);
+}
+.value-label{
+  width:72px;
+  text-align:right;
+  font-size:0.92rem;
+}
+.section-title{
+  margin-top:0.5rem;
+  margin-bottom:0.5rem;
+}
+
+.print-note{
+  margin-top:0.35rem;
+  color:var(--muted);
+  font-size:0.88rem;
+}
+
+.player-photo-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:260px;
+  max-height:320px;
+  overflow:hidden;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.08);
+  background:#0d1117;
+}
+
+.page-break{
+  height:1px;
+  border:none;
+  margin:24px 0;
+}
+
+@media print {
+  @page{
+    size:A4 portrait;
+    margin:12mm 10mm 12mm 10mm;
+  }
+
+  html, body{
+    background:white !important;
+    color:black !important;
+  }
+
+  [data-testid="stSidebar"],
+  header,
+  footer,
+  [data-testid="stToolbar"],
+  [data-testid="stDecoration"],
+  [data-testid="stStatusWidget"],
+  [data-testid="stFileUploaderDropzoneInstructions"],
+  .stDownloadButton,
+  .print-hide{
+    display:none !important;
+  }
+
+  [data-testid="stAppViewContainer"],
+  [data-testid="stMainBlockContainer"],
+  .block-container{
+    background:white !important;
+    color:black !important;
+    max-width:100% !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+
+  .card{
+    background:white !important;
+    color:black !important;
+    border:1px solid #d9d9d9 !important;
+    box-shadow:none !important;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .small-muted, .print-note{
+    color:#444 !important;
+  }
+
+  h1, h2, h3, h4, p, div, span, strong, li{
+    color:black !important;
+  }
+
+  .player-photo-wrap{
+    min-height:180px !important;
+    max-height:220px !important;
+    background:white !important;
+    border:1px solid #d9d9d9 !important;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .stImage,
+  [data-testid="stImage"]{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  [data-testid="column"]{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .bar-box{
+    background:#f1f1f1 !important;
+    border:1px solid #d0d0d0 !important;
+  }
+
+  .bar-fill-blue{
+    background:#3b82f6 !important;
+  }
+
+  .bar-fill-green{
+    background:#10b981 !important;
+  }
+
+  svg text{
+    fill:black !important;
+  }
+
+  .first-page-block{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .keep-together{
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .page-break{
+    break-before:page;
+    page-break-before:always;
+  }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# CONFIG
-# =========================
 POSITION_METRICS: Dict[str, List[str]] = {
     "Támadó": [
         "Goals", "xG", "Shots", "Shots on target", "Assists",
@@ -96,8 +248,7 @@ LABELS_HU: Dict[str, str] = {
     "Challenges won, %": "Párharc nyerés %",
     "Tackles": "Szerelések",
     "Tackles successful, %": "Sikeres szerelések %",
-    "Air challenges won, %": "Fejpárbaj nyerés %",
-    "Shots": "Lövések"
+    "Air challenges won, %": "Fejpárbaj nyerés %"
 }
 
 DEFAULT_CEILINGS: Dict[str, float] = {
@@ -120,9 +271,6 @@ DEFAULT_CEILINGS: Dict[str, float] = {
     "Air challenges won, %": 1.00,
 }
 
-# =========================
-# HELPERS
-# =========================
 def hu(metric: str) -> str:
     return LABELS_HU.get(metric, metric)
 
@@ -162,7 +310,6 @@ def normalize_player_name(name: str) -> str:
     return mapping.get(name, name)
 
 def extract_names(df: pd.DataFrame) -> Tuple[str, str]:
-    # Prefer the second row if first row contains season labels like 2025/2026
     if df.shape[0] > 1 and df.shape[1] > 3:
         row1_c2 = str(df.iloc[1, 2]).strip()
         row1_c3 = str(df.iloc[1, 3]).strip()
@@ -173,11 +320,9 @@ def extract_names(df: pd.DataFrame) -> Tuple[str, str]:
         c2 = str(df.iloc[i, 2]).strip() if df.shape[1] > 2 else ""
         c3 = str(df.iloc[i, 3]).strip() if df.shape[1] > 3 else ""
         if c2 and c3 and c2.lower() != "nan" and c3.lower() != "nan":
-            # Skip obvious season labels
             if "2025/" in c2 or "2026" in c2 or "2025/" in c3 or "2026" in c3:
                 continue
             return normalize_player_name(c2), normalize_player_name(c3)
-
     return "Játékos 1", "Játékos 2"
 
 def extract_metrics(df: pd.DataFrame) -> pd.DataFrame:
@@ -196,12 +341,8 @@ def extract_metrics(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 def pick_metrics(all_data: pd.DataFrame, position: str, custom_metrics: List[str]) -> pd.DataFrame:
-    if position == "Egyedi":
-        wanted = custom_metrics
-    else:
-        wanted = POSITION_METRICS[position]
-    out = all_data[all_data["metric"].isin(wanted)].copy()
-    return out.head(9)
+    wanted = custom_metrics if position == "Egyedi" else POSITION_METRICS[position]
+    return all_data[all_data["metric"].isin(wanted)].copy().head(9)
 
 def fixed_scores(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
     a_scores, b_scores = [], []
@@ -224,7 +365,6 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
 
     labels = [hu(m) for m in df["metric"].tolist()]
     a_scores, b_scores = fixed_scores(df)
-
     valid = ~np.isnan(a_scores) & ~np.isnan(b_scores)
     labels = [labels[i] for i in range(len(labels)) if valid[i]]
     a_scores = a_scores[valid]
@@ -233,9 +373,9 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     if len(labels) < 3:
         return "<div class='small-muted'>Nincs elég adat a pókhálóhoz.</div>"
 
-    size = 520
+    size = 500
     cx = cy = size / 2
-    radius = 170
+    radius = 155
     N = len(labels)
 
     def pt(ratio: float, angle: float):
@@ -267,15 +407,15 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     for i, label in enumerate(labels):
         angle = (2 * math.pi * i / N) - math.pi / 2
         x, y = pt(1.0, angle)
-        lx, ly = pt(1.22, angle)
+        lx, ly = pt(1.18, angle)
         spokes.append(f"<line x1=\"{cx}\" y1=\"{cy}\" x2=\"{x:.1f}\" y2=\"{y:.1f}\" stroke=\"rgba(255,255,255,0.14)\" stroke-width=\"1\"/>")
-        text_nodes.append(f"<text x=\"{lx:.1f}\" y=\"{ly:.1f}\" fill=\"white\" font-size=\"11\" text-anchor=\"middle\">{label}</text>")
+        text_nodes.append(f"<text x=\"{lx:.1f}\" y=\"{ly:.1f}\" fill=\"white\" font-size=\"10\" text-anchor=\"middle\">{label}</text>")
 
     poly_a = polygon_points(a_scores)
     poly_b = polygon_points(b_scores)
 
-    svg = f"""
-    <div class="card">
+    return f"""
+    <div class="card keep-together">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <div style="font-weight:700; font-size:1.1rem;">Pókháló – fix 0–100 skála</div>
         <div class="small-muted">
@@ -294,7 +434,6 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
       <div class="small-muted">A tengelyek a kulcsmutatókat jelölik. Kék = {player_a}, zöld = {player_b}.</div>
     </div>
     """
-    return svg
 
 def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
     st.markdown("### Kulcsmutatók")
@@ -309,9 +448,8 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
             maxv = 1.0
         width_a = int((row["a"] / maxv) * 100) if pd.notna(row["a"]) else 0
         width_b = int((row["b"] / maxv) * 100) if pd.notna(row["b"]) else 0
-
-        html = f"""
-        <div class="card metric-row">
+        st.markdown(f"""
+        <div class="card metric-row keep-together">
           <div class="metric-label">{hu(row["metric"])}</div>
           <div class="bar-wrap">
             <div style="flex:1;">
@@ -328,8 +466,7 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
             <div class="value-label">{row["b"]:.2f}</div>
           </div>
         </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, List[str], List[str]]:
     tmp = df.dropna(subset=["a", "b"]).copy()
@@ -345,59 +482,15 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
 
     text = (
         f"{player_a} {better_a} kulcsmutatóban jobb, míg {player_b} {better_b} kulcsmutatóban erősebb. "
-        f"A kiválasztott poszthoz tartozó fő mutatók alapján az összevetés inkább profilkülönbséget mutat, "
-        f"nem csak egyszerű győztest."
+        f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
     )
 
     bullets_a = [f"{hu(r['metric'])}: {r['a']:.2f} vs {r['b']:.2f}" for _, r in top_a.iterrows()]
     bullets_b = [f"{hu(r['metric'])}: {r['b']:.2f} vs {r['a']:.2f}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
-# Pure-Python PDF generator
-def _pdf_escape(text: str) -> str:
-    return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-def build_simple_pdf(title: str, lines: List[str]) -> bytes:
-    y = 800
-    content_lines = ["BT", "/F1 16 Tf 50 810 Td", f"({_pdf_escape(title)}) Tj", "/F1 10 Tf"]
-    for line in lines:
-        y -= 16
-        if y < 50:
-            break
-        content_lines.append(f"1 0 0 1 50 {y} Tm ({_pdf_escape(line)}) Tj")
-    content_lines.append("ET")
-    content = "\n".join(content_lines).encode("latin-1", errors="replace")
-
-    objects = []
-    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
-    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-    objects.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>")
-    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
-    objects.append(f"<< /Length {len(content)} >>\nstream\n".encode("latin-1") + content + b"\nendstream")
-
-    pdf = bytearray(b"%PDF-1.4\n")
-    offsets = [0]
-    for i, obj in enumerate(objects, start=1):
-        offsets.append(len(pdf))
-        pdf.extend(f"{i} 0 obj\n".encode("latin-1"))
-        pdf.extend(obj)
-        pdf.extend(b"\nendobj\n")
-
-    xref_pos = len(pdf)
-    pdf.extend(f"xref\n0 {len(objects)+1}\n".encode("latin-1"))
-    pdf.extend(b"0000000000 65535 f \n")
-    for off in offsets[1:]:
-        pdf.extend(f"{off:010d} 00000 n \n".encode("latin-1"))
-    pdf.extend(
-        f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF".encode("latin-1")
-    )
-    return bytes(pdf)
-
-# =========================
-# APP
-# =========================
-st.title("⚽ ELITE DESIGN MODE – Scout Comparison App")
-st.caption("CSV alapú, posztspecifikus összehasonlítás képekkel, pókhálóval, kulcsmutatókkal és PDF exporttal.")
+st.title("⚽ ELITE DESIGN MODE – nyomtatásbarát verzió")
+st.caption("A fókusz most a jól tördelhető, nyomtatható oldalelrendezésen van.")
 
 with st.sidebar:
     st.header("Feltöltések")
@@ -436,31 +529,33 @@ with st.sidebar:
         )
 
 filtered = pick_metrics(all_data, position, custom_metrics)
-
 if filtered.empty:
     st.warning("Ehhez a poszthoz nincs megfelelő adat a feltöltött fájlban.")
     st.stop()
 
-# HEADER CARDS
+st.markdown("<div class='first-page-block'>", unsafe_allow_html=True)
+
 c1, c2 = st.columns(2)
 with c1:
-    st.markdown(f"<div class='card'><h3>{player_a}</h3><div class='small-muted'>Első játékos</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together'><h3>{player_a}</h3><div class='small-muted'>Első játékos</div></div>", unsafe_allow_html=True)
     if img_a is not None:
+        st.markdown("<div class='player-photo-wrap'>", unsafe_allow_html=True)
         st.image(img_a, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 with c2:
-    st.markdown(f"<div class='card'><h3>{player_b}</h3><div class='small-muted'>Második játékos</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together'><h3>{player_b}</h3><div class='small-muted'>Második játékos</div></div>", unsafe_allow_html=True)
     if img_b is not None:
+        st.markdown("<div class='player-photo-wrap'>", unsafe_allow_html=True)
         st.image(img_b, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-left, right = st.columns([1.1, 1])
-
+left, right = st.columns([1.05, 0.95])
 with left:
     st.markdown(build_radar_svg(filtered, player_a, player_b), unsafe_allow_html=True)
-
 with right:
-    st.markdown("<div class='card'><h3 class='section-title'>Konklúzió</h3>", unsafe_allow_html=True)
+    st.markdown("<div class='card keep-together'><h3 class='section-title'>Konklúzió</h3>", unsafe_allow_html=True)
     summary, strengths_a, strengths_b = conclusions(filtered, player_a, player_b)
     st.write(summary)
     st.markdown(f"**{player_a} fő erősségei**")
@@ -471,7 +566,10 @@ with right:
         st.write("•", item)
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("<hr class='page-break'>", unsafe_allow_html=True)
+
 render_metric_bars(filtered, player_a, player_b)
 
 st.markdown("---")
@@ -480,30 +578,9 @@ table_show = filtered.copy()
 table_show["Mutató"] = table_show["metric"].map(hu)
 table_show = table_show[["Mutató", "a", "b"]].rename(columns={"a": "Játékos A", "b": "Játékos B"})
 st.table(table_show)
-
-st.markdown(f"<div class='small-muted'>Játékos A = {player_a} | Játékos B = {player_b}</div>", unsafe_allow_html=True)
-
-# PDF export
-pdf_lines = [f"Poszt: {position}", ""]
-pdf_lines.append("Kulcsmutatók:")
-for _, row in filtered.iterrows():
-    pdf_lines.append(f"{hu(row['metric'])}: {row['a']:.2f} vs {row['b']:.2f}")
-pdf_lines.append("")
-pdf_lines.append("Konklúzió:")
-pdf_lines.append(summary)
-pdf_lines.append("")
-pdf_lines.append(f"{player_a} fő erősségei:")
-for item in strengths_a:
-    pdf_lines.append(f"- {item}")
-pdf_lines.append(f"{player_b} fő erősségei:")
-for item in strengths_b:
-    pdf_lines.append(f"- {item}")
-
-pdf_bytes = build_simple_pdf(f"{player_a} vs {player_b}", pdf_lines)
-
-st.download_button(
-    "📄 PDF letöltése",
-    data=pdf_bytes,
-    file_name="scout_report.pdf",
-    mime="application/pdf"
+st.markdown(
+    f"<div class='print-note'>Játékos A = {player_a} | Játékos B = {player_b}. "
+    f"Nyomtatáskor az első oldalra a fejléc, a két kép, a pókháló és a konklúzió kerül, "
+    f"a kulcsmutatók új oldalon kezdődnek.</div>",
+    unsafe_allow_html=True
 )
