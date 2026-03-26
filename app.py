@@ -1,16 +1,14 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
-import streamlit as st
-import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
-# ---------- LOAD FILE ----------
+# ---------- LOAD ----------
 def load_file(file):
     df = pd.read_csv(file, sep=";")
     df = df.reset_index(drop=True)
 
-    # játékos nevek (feltételezve struktúrát)
     p1 = str(df.iloc[0,2])
     p2 = str(df.iloc[0,3])
 
@@ -28,37 +26,43 @@ def load_file(file):
         if metric:
             data.append({"metric": metric, "a": a, "b": b})
 
-    data = pd.DataFrame(data)
-
-    return p1, p2, data
+    return p1, p2, pd.DataFrame(data)
 
 
-# ---------- RADAR ----------
-def radar(data, p1, p2):
+# ---------- RADAR (NO LIB!) ----------
+def draw_radar(data, p1, p2):
     labels = data["metric"].tolist()
+    N = len(labels)
 
-    # NORMALIZÁLÁS (nem torz)
+    # normalizálás
     max_vals = np.maximum(data["a"], data["b"]) * 1.2
+    a = (data["a"] / max_vals)
+    b = (data["b"] / max_vals)
 
-    a = (data["a"] / max_vals) * 100
-    b = (data["b"] / max_vals) * 100
+    points_a = []
+    points_b = []
 
-    labels += [labels[0]]
-    a = list(a) + [a.iloc[0]]
-    b = list(b) + [b.iloc[0]]
+    for i in range(N):
+        angle = 2*np.pi*i/N
+        x1 = 150 + 120*a.iloc[i]*np.cos(angle)
+        y1 = 150 + 120*a.iloc[i]*np.sin(angle)
+        x2 = 150 + 120*b.iloc[i]*np.cos(angle)
+        y2 = 150 + 120*b.iloc[i]*np.sin(angle)
 
-    fig = go.Figure()
+        points_a.append(f"{x1},{y1}")
+        points_b.append(f"{x2},{y2}")
 
-    fig.add_trace(go.Scatterpolar(r=a, theta=labels, fill='toself', name=p1, line=dict(color='blue')))
-    fig.add_trace(go.Scatterpolar(r=b, theta=labels, fill='toself', name=p2, line=dict(color='green')))
+    points_a.append(points_a[0])
+    points_b.append(points_b[0])
 
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0,100])),
-        showlegend=True,
-        template="plotly_dark"
-    )
+    svg = f"""
+    <svg width="300" height="300">
+        <polygon points="{' '.join(points_a)}" fill="blue" opacity="0.4"/>
+        <polygon points="{' '.join(points_b)}" fill="green" opacity="0.4"/>
+    </svg>
+    """
 
-    return fig
+    st.markdown(svg, unsafe_allow_html=True)
 
 
 # ---------- APP ----------
@@ -73,36 +77,30 @@ if not file:
 
 p1, p2, data = load_file(file)
 
-col1, col2 = st.columns(2)
+# ---------- PLAYERS ----------
+c1, c2 = st.columns(2)
 
-with col1:
+with c1:
     st.subheader(p1)
     if img1:
         st.image(img1)
 
-with col2:
+with c2:
     st.subheader(p2)
     if img2:
         st.image(img2)
 
 st.markdown("---")
 
-# RADAR
-st.plotly_chart(radar(data, p1, p2), use_container_width=True)
+# ---------- RADAR ----------
+st.subheader("📊 Pókháló")
+draw_radar(data, p1, p2)
 
-# BAR
+# ---------- BAR ----------
 st.subheader("📊 Összehasonlítás")
 
-data["diff"] = data["a"] - data["b"]
-
-fig = go.Figure()
-
-fig.add_trace(go.Bar(y=data["metric"], x=data["a"], name=p1, orientation='h'))
-fig.add_trace(go.Bar(y=data["metric"], x=data["b"], name=p2, orientation='h'))
-
-fig.update_layout(barmode='group', template="plotly_dark")
-
-st.plotly_chart(fig, use_container_width=True)
+for _, r in data.iterrows():
+    st.write(f"{r['metric']}: {r['a']} vs {r['b']}")
 
 # ---------- ANALYSIS ----------
 st.subheader("🧠 KONKLÚZIÓ")
@@ -110,17 +108,18 @@ st.subheader("🧠 KONKLÚZIÓ")
 better_a = (data["a"] > data["b"]).sum()
 better_b = (data["b"] > data["a"]).sum()
 
-st.write(f"👉 {p1} erősebb {better_a} mutatóban")
-st.write(f"👉 {p2} erősebb {better_b} mutatóban")
+st.write(f"{p1} jobb {better_a} mutatóban")
+st.write(f"{p2} jobb {better_b} mutatóban")
+
+data["diff"] = data["a"] - data["b"]
 
 top_a = data.sort_values("diff", ascending=False).head(3)
 top_b = data.sort_values("diff", ascending=True).head(3)
 
 st.markdown(f"### 🔥 {p1} erősségek")
 for _, r in top_a.iterrows():
-    st.write(f"{r['metric']}")
+    st.write(r["metric"])
 
 st.markdown(f"### 🔥 {p2} erősségek")
 for _, r in top_b.iterrows():
-    st.write(f"{r['metric']}")
-
+    st.write(r["metric"])
