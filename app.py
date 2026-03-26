@@ -8,22 +8,48 @@ st.set_page_config(layout="wide")
 # ---------- FILE LOAD ----------
 def load_file(file):
     try:
-        if file.name.endswith(".csv"):
-            df = pd.read_csv(file, header=None)
+        name = file.name.lower()
+
+        if name.endswith(".csv"):
+            # TRY MULTIPLE DELIMITERS
+            try:
+                df = pd.read_csv(file, sep=";")
+                if df.shape[1] <= 2:
+                    file.seek(0)
+                    df = pd.read_csv(file, sep=",")
+            except:
+                file.seek(0)
+                df = pd.read_csv(file, sep=",")
         else:
             df = pd.read_excel(file, header=None)
-    except:
-        st.error("Excel olvasási hiba. Használj CSV-t (mentés másként).")
+
+    except Exception as e:
+        st.error(f"Hiba a fájl olvasásakor: {e}")
         st.stop()
 
-    p1 = str(df.iloc[0,2])
-    p2 = str(df.iloc[0,3])
+    # ensure dataframe shape
+    if df.shape[1] < 3:
+        st.error("A fájl nem megfelelő formátumú (min 3 oszlop kell)")
+        st.stop()
+
+    # TRY HEADER FIX
+    df = df.reset_index(drop=True)
+
+    try:
+        p1 = str(df.iloc[0,2])
+        p2 = str(df.iloc[0,3])
+    except:
+        p1 = "Játékos 1"
+        p2 = "Játékos 2"
 
     data = pd.DataFrame({
         "metric": df.iloc[:,0],
         "a": pd.to_numeric(df.iloc[:,2], errors="coerce"),
         "b": pd.to_numeric(df.iloc[:,3], errors="coerce")
-    }).dropna()
+    })
+
+    data = data.dropna(subset=["a","b"], how="all")
+    data = data[data["metric"].notna()]
 
     return p1, p2, data
 
