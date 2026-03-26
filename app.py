@@ -1,130 +1,62 @@
+# FULL STREAMLIT SCOUT APP (STABLE VERSION)
+
 import io
 import math
-from typing import Dict, List, Tuple
-
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Scout Comparison App", layout="wide")
 
-# =========================
-# STYLE (print + clean)
-# =========================
 st.markdown("""
 <style>
-:root{
-  --bg:#0f1117;
-  --card:#171a21;
-  --line:rgba(255,255,255,0.08);
-  --blue:#3b82f6;
-  --green:#10b981;
-}
-
 .block-container{max-width:1400px;}
-
-.card{
-  background:var(--card);
-  border-radius:16px;
-  padding:16px;
-  margin-bottom:12px;
-}
-
-.two-col{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
-}
-
+.card{background:#171a21;border-radius:16px;padding:16px;margin-bottom:12px;}
 @media print {
-  header, footer, .stSidebar {display:none !important;}
-  .card{page-break-inside:avoid;}
+ header, footer, .stSidebar {display:none !important;}
+ .card{page-break-inside:avoid;}
 }
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
-# FULL POSITIONS
-# =========================
-POSITION_METRICS: Dict[str, List[str]] = {
-    "GK": [],
-    "CB": [],
-    "LCB": [],
-    "RCB": [],
-    "LB": [],
-    "RB": [],
-    "LWB": [],
-    "RWB": [],
-    "CDM": [],
-    "LDM": [],
-    "RDM": [],
-    "CM": [],
-    "LCM": [],
-    "RCM": [],
-    "CAM": [],
-    "LAM": [],
-    "RAM": [],
-    "LW": [],
-    "RW": [],
-    "CF": [],
-    "ST": [],
-    "Egyedi": []
+POSITION_METRICS = {
+    "GK":[], "CB":[], "LB":[], "RB":[],
+    "CDM":[], "CM":[], "CAM":[],
+    "LW":[], "RW":[], "CF":[], "ST":[],
+    "AUTO":[]
 }
 
-# =========================
-# HELPERS
-# =========================
-def safe_float(v):
-    try:
-        return float(str(v).replace(",", "."))
-    except:
-        return np.nan
+def load(file):
+    raw = file.getvalue().decode("utf-8", errors="ignore")
+    df = pd.read_csv(io.StringIO(raw), sep=";", header=None)
 
-def try_read_csv(uploaded_file):
-    raw = uploaded_file.getvalue()
-    for sep in [";", ","]:
+    p1, p2 = "Player A","Player B"
+    for i in range(5):
         try:
-            return pd.read_csv(io.StringIO(raw.decode("utf-8")), sep=sep, header=None)
-        except:
-            continue
-    raise ValueError("CSV hiba")
+            a,b=str(df.iloc[i,2]),str(df.iloc[i,3])
+            if "202" not in a:
+                p1,p2=a,b
+                break
+        except: pass
 
-def extract_names(df):
-    return str(df.iloc[1,2]), str(df.iloc[1,3])
-
-def extract_metrics(df):
     rows=[]
     for i in range(len(df)):
         try:
             rows.append({
-                "metric":df.iloc[i,0],
-                "a":safe_float(df.iloc[i,2]),
-                "b":safe_float(df.iloc[i,3])
+                "metric":str(df.iloc[i,0]),
+                "a":float(str(df.iloc[i,2]).replace(",", ".")),
+                "b":float(str(df.iloc[i,3]).replace(",", "."))
             })
-        except:
-            pass
-    return pd.DataFrame(rows)
+        except: pass
 
-def pick_metrics(all_data, position):
-    if position=="Egyedi":
-        return all_data.head(8)
-    df = all_data
-    if len(df)<3:
-        return all_data.head(6)
-    return df.head(8)
+    return p1,p2,pd.DataFrame(rows)
 
-# =========================
-# RADAR (FIXED, NOT EMPTY)
-# =========================
 def radar(df,p1,p2):
-
     if len(df)<3:
         df=data.head(6)
 
     df=df.head(6)
-
-    labels=df["metric"].tolist()
-    N=len(labels)
+    N=len(df)
 
     max_vals=np.maximum(df["a"],df["b"])
     max_vals[max_vals==0]=1
@@ -141,68 +73,51 @@ def radar(df,p1,p2):
 
     pts_a.append(pts_a[0]); pts_b.append(pts_b[0])
 
-    svg=f"""
+    svg=f'''
     <div class="card">
     <svg width="500" height="500">
     <polygon points="{' '.join(pts_a)}" fill="#3b82f6" opacity="0.4"/>
     <polygon points="{' '.join(pts_b)}" fill="#10b981" opacity="0.4"/>
     </svg>
     </div>
-    """
+    '''
     st.markdown(svg, unsafe_allow_html=True)
     st.markdown(f"🔵 {p1} | 🟢 {p2}")
 
-# =========================
-# MAIN
-# =========================
-uploaded = st.file_uploader("CSV")
-img_a = st.file_uploader("Kép A")
-img_b = st.file_uploader("Kép B")
+file = st.file_uploader("CSV", type=["csv"])
+img1 = st.file_uploader("Player 1 image")
+img2 = st.file_uploader("Player 2 image")
 
-if not uploaded:
+if not file:
     st.stop()
 
-df_raw = try_read_csv(uploaded)
-player_a, player_b = extract_names(df_raw)
-all_data = extract_metrics(df_raw)
+p1,p2,data = load(file)
 
-position = st.selectbox("Poszt", list(POSITION_METRICS.keys()))
-filtered = pick_metrics(all_data, position)
+pos = st.selectbox("Position", list(POSITION_METRICS.keys()))
+filtered = data
 
-# HEADER
-c1, c2 = st.columns(2)
-
+c1,c2 = st.columns(2)
 with c1:
-    st.subheader(player_a)
-    if img_a:
-        st.image(img_a)
-
+    st.subheader(p1)
+    if img1:
+        st.image(img1)
 with c2:
-    st.subheader(player_b)
-    if img_b:
-        st.image(img_b)
+    st.subheader(p2)
+    if img2:
+        st.image(img2)
 
 st.markdown("---")
 
-# RADAR + TEXT
-st.markdown('<div class="two-col">', unsafe_allow_html=True)
-
-col1,col2 = st.columns(2)
-
-with col1:
-    radar(filtered,player_a,player_b)
-
-with col2:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.write(f"{player_a}: {(filtered['a']>filtered['b']).sum()}")
-    st.write(f"{player_b}: {(filtered['b']>filtered['a']).sum()}")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
+c1,c2 = st.columns(2)
+with c1:
+    radar(filtered,p1,p2)
+with c2:
+    st.markdown("### Konklúzió")
+    st.write(f"{p1}: {(filtered['a']>filtered['b']).sum()}")
+    st.write(f"{p2}: {(filtered['b']>filtered['a']).sum()}")
 
 st.markdown("---")
 
-# METRICS
 for _,r in filtered.iterrows():
     c1,c2,c3 = st.columns([2,1,1])
     c1.write(r["metric"])
@@ -211,5 +126,4 @@ for _,r in filtered.iterrows():
     c3.progress(r["b"]/maxv if maxv else 0)
 
 st.markdown("---")
-
 st.table(filtered)
