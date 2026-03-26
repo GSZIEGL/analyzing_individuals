@@ -13,7 +13,7 @@ st.set_page_config(page_title="Scout Comparison App", layout="wide")
 # =========================
 st.markdown("""
 <style>
-.block-container {padding-top: 1.2rem; padding-bottom: 2rem;}
+.block-container {padding-top: 1rem; padding-bottom: 2rem;}
 .card {
     background: linear-gradient(180deg, #171a21 0%, #11141b 100%);
     border: 1px solid rgba(255,255,255,0.08);
@@ -45,7 +45,7 @@ st.markdown("""
     background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
 }
 .value-label {
-    width:70px;
+    width:72px;
     text-align:right;
     font-size:0.92rem;
 }
@@ -62,7 +62,7 @@ st.markdown("""
 POSITION_METRICS: Dict[str, List[str]] = {
     "Támadó": [
         "Goals", "xG", "Shots", "Shots on target", "Assists",
-        "Chances created", "Key passes", "Dribbles"
+        "Chances created", "Key passes", "Dribbles", "Progressive passes"
     ],
     "Támadó középpályás": [
         "Goals", "Assists", "Chances created", "Key passes",
@@ -96,7 +96,8 @@ LABELS_HU: Dict[str, str] = {
     "Challenges won, %": "Párharc nyerés %",
     "Tackles": "Szerelések",
     "Tackles successful, %": "Sikeres szerelések %",
-    "Air challenges won, %": "Fejpárbaj nyerés %"
+    "Air challenges won, %": "Fejpárbaj nyerés %",
+    "Shots": "Lövések"
 }
 
 DEFAULT_CEILINGS: Dict[str, float] = {
@@ -143,7 +144,7 @@ def try_read_csv(uploaded_file) -> pd.DataFrame:
         for sep in [";", ",", "\t"]:
             try:
                 text = raw.decode(enc, errors="ignore")
-                df = pd.read_csv(io.StringIO(text), sep=sep, header=None)
+                df = pd.read_csv(io.StringIO(text), sep=sep, header=None, engine="python")
                 if df.shape[1] >= 4:
                     return df
             except Exception as e:
@@ -151,12 +152,32 @@ def try_read_csv(uploaded_file) -> pd.DataFrame:
                 continue
     raise ValueError(f"Nem sikerült beolvasni a CSV-t. Utolsó hiba: {last_err}")
 
+def normalize_player_name(name: str) -> str:
+    name = str(name).strip()
+    mapping = {
+        "Gergő Pálinkás": "Pálinkás Gergő",
+        "Mate Gyurko": "Gyurkó Máté",
+        "Máté Gyurkó": "Gyurkó Máté"
+    }
+    return mapping.get(name, name)
+
 def extract_names(df: pd.DataFrame) -> Tuple[str, str]:
-    for i in range(min(5, len(df))):
+    # Prefer the second row if first row contains season labels like 2025/2026
+    if df.shape[0] > 1 and df.shape[1] > 3:
+        row1_c2 = str(df.iloc[1, 2]).strip()
+        row1_c3 = str(df.iloc[1, 3]).strip()
+        if row1_c2 and row1_c3 and row1_c2.lower() != "nan" and row1_c3.lower() != "nan":
+            return normalize_player_name(row1_c2), normalize_player_name(row1_c3)
+
+    for i in range(min(6, len(df))):
         c2 = str(df.iloc[i, 2]).strip() if df.shape[1] > 2 else ""
         c3 = str(df.iloc[i, 3]).strip() if df.shape[1] > 3 else ""
         if c2 and c3 and c2.lower() != "nan" and c3.lower() != "nan":
-            return c2, c3
+            # Skip obvious season labels
+            if "2025/" in c2 or "2026" in c2 or "2025/" in c3 or "2026" in c3:
+                continue
+            return normalize_player_name(c2), normalize_player_name(c3)
+
     return "Játékos 1", "Játékos 2"
 
 def extract_metrics(df: pd.DataFrame) -> pd.DataFrame:
@@ -185,7 +206,10 @@ def pick_metrics(all_data: pd.DataFrame, position: str, custom_metrics: List[str
 def fixed_scores(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
     a_scores, b_scores = [], []
     for _, row in df.iterrows():
-        ceiling = DEFAULT_CEILINGS.get(row["metric"], max(row["a"], row["b"]) * 1.15 if pd.notna(row["a"]) and pd.notna(row["b"]) else 1.0)
+        dynamic = 1.0
+        if pd.notna(row["a"]) and pd.notna(row["b"]):
+            dynamic = max(float(row["a"]), float(row["b"])) * 1.15
+        ceiling = DEFAULT_CEILINGS.get(row["metric"], dynamic if dynamic > 0 else 1.0)
         if ceiling == 0 or pd.isna(row["a"]) or pd.isna(row["b"]):
             a_scores.append(np.nan)
             b_scores.append(np.nan)
@@ -267,7 +291,7 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
         <polygon points="{poly_b}" fill="rgba(16,185,129,0.34)" stroke="#34d399" stroke-width="3"/>
         {''.join(text_nodes)}
       </svg>
-      <div class="small-muted">A feliratok a pókháló tengelyeit jelölik. Kék = első játékos, zöld = második játékos.</div>
+      <div class="small-muted">A tengelyek a kulcsmutatókat jelölik. Kék = {player_a}, zöld = {player_b}.</div>
     </div>
     """
     return svg
@@ -321,7 +345,7 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
 
     text = (
         f"{player_a} {better_a} kulcsmutatóban jobb, míg {player_b} {better_b} kulcsmutatóban erősebb. "
-        f"A kiválasztott poszthoz tartozó legfontosabb mutatók alapján az összevetés profilkülönbséget mutat, "
+        f"A kiválasztott poszthoz tartozó fő mutatók alapján az összevetés inkább profilkülönbséget mutat, "
         f"nem csak egyszerű győztest."
     )
 
@@ -329,30 +353,27 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
     bullets_b = [f"{hu(r['metric'])}: {r['b']:.2f} vs {r['a']:.2f}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
-# Minimal pure-Python PDF generator (text-based, no external dependency)
+# Pure-Python PDF generator
 def _pdf_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 def build_simple_pdf(title: str, lines: List[str]) -> bytes:
     y = 800
-    content_lines = ["BT", "/F1 16 Tf 50 810 Td"]
-    content_lines.append(f"({_pdf_escape(title)}) Tj")
-    content_lines.append("/F1 10 Tf")
+    content_lines = ["BT", "/F1 16 Tf 50 810 Td", f"({_pdf_escape(title)}) Tj", "/F1 10 Tf"]
     for line in lines:
         y -= 16
+        if y < 50:
+            break
         content_lines.append(f"1 0 0 1 50 {y} Tm ({_pdf_escape(line)}) Tj")
     content_lines.append("ET")
     content = "\n".join(content_lines).encode("latin-1", errors="replace")
 
     objects = []
-    def add_obj(obj_bytes: bytes):
-        objects.append(obj_bytes)
-
-    add_obj(b"<< /Type /Catalog /Pages 2 0 R >>")
-    add_obj(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-    add_obj(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>")
-    add_obj(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
-    add_obj(f"<< /Length {len(content)} >>\nstream\n".encode("latin-1") + content + b"\nendstream")
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    objects.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>")
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    objects.append(f"<< /Length {len(content)} >>\nstream\n".encode("latin-1") + content + b"\nendstream")
 
     pdf = bytearray(b"%PDF-1.4\n")
     offsets = [0]
@@ -399,7 +420,7 @@ all_data = extract_metrics(df_raw)
 
 if all_data.empty:
     st.error("Nem találtam értelmezhető numerikus adatokat a fájlban.")
-    st.dataframe(df_raw.head(10), use_container_width=True)
+    st.table(df_raw.head(10).astype(str))
     st.stop()
 
 with st.sidebar:
@@ -457,14 +478,16 @@ st.markdown("---")
 st.subheader("Részletes táblázat")
 table_show = filtered.copy()
 table_show["Mutató"] = table_show["metric"].map(hu)
-table_show = table_show[["Mutató", "a", "b"]].rename(columns={"a": player_a, "b": player_b})
-st.dataframe(table_show, use_container_width=True)
+table_show = table_show[["Mutató", "a", "b"]].rename(columns={"a": "Játékos A", "b": "Játékos B"})
+st.table(table_show)
 
-# REAL PDF DOWNLOAD
+st.markdown(f"<div class='small-muted'>Játékos A = {player_a} | Játékos B = {player_b}</div>", unsafe_allow_html=True)
+
+# PDF export
 pdf_lines = [f"Poszt: {position}", ""]
 pdf_lines.append("Kulcsmutatók:")
-for _, row in table_show.iterrows():
-    pdf_lines.append(f"{row['Mutató']}: {row[player_a]:.2f} vs {row[player_b]:.2f}")
+for _, row in filtered.iterrows():
+    pdf_lines.append(f"{hu(row['metric'])}: {row['a']:.2f} vs {row['b']:.2f}")
 pdf_lines.append("")
 pdf_lines.append("Konklúzió:")
 pdf_lines.append(summary)
