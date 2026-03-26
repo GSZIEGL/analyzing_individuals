@@ -2,14 +2,13 @@ import io
 from math import pi
 from typing import Dict, List, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 
 st.set_page_config(page_title="Játékos-összehasonlító app", layout="wide")
-
 
 POSITION_METRICS: Dict[str, List[str]] = {
     "Támadó": [
@@ -72,7 +71,6 @@ METRIC_LABELS_HU: Dict[str, str] = {
     "xG": "xG",
 }
 
-# Fix 0–100 skálák
 METRIC_CEILINGS: Dict[str, float] = {
     "Goals": 0.80,
     "Assists": 0.50,
@@ -136,7 +134,6 @@ def load_comparison_excel(uploaded_file) -> Tuple[str, str, str, str, pd.DataFra
     metrics_df = metrics_df[
         ~metrics_df["metric"].isin(["nan", "Index", "Minutes played", "Position", ""])
     ].copy()
-
     metrics_df = metrics_df.dropna(subset=["player_a", "player_b"], how="all").reset_index(drop=True)
     return player_a, player_b, pos_a, pos_b, metrics_df
 
@@ -206,30 +203,36 @@ def plot_radar(table: pd.DataFrame, player_a: str, player_b: str):
     if len(labels) < 3:
         return None
 
-    N = len(labels)
-    angles = [n / float(N) * 2 * pi for n in range(N)]
-    angles += angles[:1]
+    labels_closed = labels + [labels[0]]
+    a_closed = list(a_scores) + [a_scores[0]]
+    b_closed = list(b_scores) + [b_scores[0]]
 
-    a_plot = list(a_scores) + [a_scores[0]]
-    b_plot = list(b_scores) + [b_scores[0]]
-
-    fig = plt.figure(figsize=(6.8, 6.8))
-    ax = plt.subplot(111, polar=True)
-
-    ax.plot(angles, a_plot, linewidth=2.5, label=player_a, color="#6C63FF")
-    ax.fill(angles, a_plot, alpha=0.20, color="#6C63FF")
-
-    ax.plot(angles, b_plot, linewidth=2.5, label=player_b, color="#00C2A8")
-    ax.fill(angles, b_plot, alpha=0.20, color="#00C2A8")
-
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylim(0, 100)
-    ax.set_yticks([20, 40, 60, 80, 100])
-    ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9)
-    ax.set_title("Pókháló – fix 0–100 skála", pad=20, fontsize=15)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2, fontsize=10)
-    fig.tight_layout()
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=a_closed,
+        theta=labels_closed,
+        fill="toself",
+        name=player_a,
+        line=dict(color="#6C63FF", width=3),
+        opacity=0.55
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=b_closed,
+        theta=labels_closed,
+        fill="toself",
+        name=player_b,
+        line=dict(color="#00C2A8", width=3),
+        opacity=0.50
+    ))
+    fig.update_layout(
+        title="Pókháló – fix 0–100 skála",
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 100], tickvals=[20, 40, 60, 80, 100]),
+        ),
+        legend=dict(orientation="h", y=1.1, x=0.2),
+        margin=dict(l=40, r=40, t=70, b=40),
+        height=520
+    )
     return fig
 
 
@@ -241,18 +244,27 @@ def plot_bar_comparison(table: pd.DataFrame, player_a: str, player_b: str):
     bar["diff"] = (bar["player_a"] - bar["player_b"]).abs()
     bar = bar.sort_values("diff", ascending=True)
 
-    fig = plt.figure(figsize=(8, max(4, len(bar) * 0.45)))
-    ax = plt.gca()
-    y = np.arange(len(bar))
-
-    ax.barh(y - 0.18, bar["player_a"], height=0.35, label=player_a, color="#6C63FF")
-    ax.barh(y + 0.18, bar["player_b"], height=0.35, label=player_b, color="#00C2A8")
-
-    ax.set_yticks(y)
-    ax.set_yticklabels(bar["Mutató"])
-    ax.set_title("Nyers mutatók összehasonlítása")
-    ax.legend()
-    fig.tight_layout()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=bar["player_a"],
+        y=bar["Mutató"],
+        orientation="h",
+        name=player_a,
+        marker_color="#6C63FF"
+    ))
+    fig.add_trace(go.Bar(
+        x=bar["player_b"],
+        y=bar["Mutató"],
+        orientation="h",
+        name=player_b,
+        marker_color="#00C2A8"
+    ))
+    fig.update_layout(
+        barmode="group",
+        title="Nyers mutatók összehasonlítása",
+        height=max(420, len(bar) * 42),
+        margin=dict(l=20, r=20, t=60, b=20)
+    )
     return fig
 
 
@@ -325,8 +337,11 @@ default_group = infer_position_group(pos_a, pos_b)
 
 with st.sidebar:
     st.header("Szűrés")
-    position_group = st.selectbox("Posztcsoport", list(POSITION_METRICS.keys()),
-                                  index=list(POSITION_METRICS.keys()).index(default_group))
+    position_group = st.selectbox(
+        "Posztcsoport",
+        list(POSITION_METRICS.keys()),
+        index=list(POSITION_METRICS.keys()).index(default_group)
+    )
 
     custom_metrics = []
     if position_group == "Egyedi":
@@ -364,13 +379,13 @@ left, right = st.columns([1.05, 0.95])
 with left:
     radar_fig = plot_radar(comparison, player_a, player_b)
     if radar_fig is not None:
-        st.pyplot(radar_fig, clear_figure=True)
+        st.plotly_chart(radar_fig, use_container_width=True)
     else:
         st.info("Nincs elég adat a pókhálóhoz.")
 
     bar_fig = plot_bar_comparison(comparison, player_a, player_b)
     if bar_fig is not None:
-        st.pyplot(bar_fig, clear_figure=True)
+        st.plotly_chart(bar_fig, use_container_width=True)
 
 with right:
     st.subheader("Rövid szöveges összehasonlítás")
