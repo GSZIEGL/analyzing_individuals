@@ -3,6 +3,7 @@ import math
 from typing import Dict, List, Tuple
 
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
@@ -407,65 +408,63 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     if len(labels) < 3:
         return "<div class='small-muted'>Nincs elég adat a pókhálóhoz.</div>"
 
-    size = 500
-    cx = cy = size / 2
-    radius = 155
-    N = len(labels)
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
+    angles_closed = np.concatenate([angles, [angles[0]]])
+    a_closed = np.concatenate([a_scores, [a_scores[0]]])
+    b_closed = np.concatenate([b_scores, [b_scores[0]]])
 
-    def pt(ratio: float, angle: float):
-        x = cx + radius * ratio * math.cos(angle)
-        y = cy + radius * ratio * math.sin(angle)
-        return x, y
+    fig, ax = plt.subplots(figsize=(6.2, 6.2), subplot_kw={"polar": True}, facecolor="#0f172a")
+    ax.set_facecolor("#0f172a")
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
 
-    def polygon_points(values):
-        pts = []
-        for i, val in enumerate(values):
-            angle = (2 * math.pi * i / N) - math.pi / 2
-            x, y = pt(val / 100.0, angle)
-            pts.append(f"{x:.1f},{y:.1f}")
-        pts.append(pts[0])
-        return " ".join(pts)
+    ax.set_ylim(0, 100)
+    ax.set_yticks([20, 40, 60, 80, 100])
+    ax.set_yticklabels(["20", "40", "60", "80", "100"], fontsize=9, color="#cbd5e1")
+    ax.set_rlabel_position(0)
 
-    grid = []
-    for ring in [0.2, 0.4, 0.6, 0.8, 1.0]:
-        ring_pts = []
-        for i in range(N):
-            angle = (2 * math.pi * i / N) - math.pi / 2
-            x, y = pt(ring, angle)
-            ring_pts.append(f"{x:.1f},{y:.1f}")
-        ring_pts.append(ring_pts[0])
-        grid.append(f"<polyline points=\"{' '.join(ring_pts)}\" fill=\"none\" stroke=\"rgba(255,255,255,0.18)\" stroke-width=\"1\"/>")
+    ax.set_xticks(angles)
+    ax.set_xticklabels(labels, fontsize=10, color="white")
 
-    spokes = []
-    text_nodes = []
-    for i, label in enumerate(labels):
-        angle = (2 * math.pi * i / N) - math.pi / 2
-        x, y = pt(1.0, angle)
-        lx, ly = pt(1.18, angle)
-        spokes.append(f"<line x1=\"{cx}\" y1=\"{cy}\" x2=\"{x:.1f}\" y2=\"{y:.1f}\" stroke=\"rgba(255,255,255,0.14)\" stroke-width=\"1\"/>")
-        text_nodes.append(f"<text x=\"{lx:.1f}\" y=\"{ly:.1f}\" fill=\"white\" font-size=\"10\" text-anchor=\"middle\">{label}</text>")
+    ax.yaxis.grid(True, color="#94a3b8", linewidth=1.2, alpha=0.9)
+    ax.xaxis.grid(True, color="#64748b", linewidth=1.0, alpha=0.85)
+    ax.spines["polar"].set_color("#e2e8f0")
+    ax.spines["polar"].set_linewidth(1.2)
 
-    poly_a = polygon_points(a_scores)
-    poly_b = polygon_points(b_scores)
+    ax.plot(angles_closed, a_closed, color="#60a5fa", linewidth=2.8)
+    ax.fill(angles_closed, a_closed, color="#3b82f6", alpha=0.28)
+
+    ax.plot(angles_closed, b_closed, color="#34d399", linewidth=2.8)
+    ax.fill(angles_closed, b_closed, color="#10b981", alpha=0.28)
+
+    from matplotlib.lines import Line2D
+    legend_items = [
+        Line2D([0], [0], color="#60a5fa", lw=3, label=player_a),
+        Line2D([0], [0], color="#34d399", lw=3, label=player_b),
+    ]
+    leg = ax.legend(
+        handles=legend_items,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.16),
+        ncol=2,
+        frameon=False,
+        fontsize=10,
+    )
+    for txt in leg.get_texts():
+        txt.set_color("white")
+
+    plt.tight_layout(pad=2.0)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=220, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    buf.seek(0)
+    img_b64 = base64.b64encode(buf.read()).decode("utf-8")
 
     return f"""
     <div class="card keep-together">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <div style="font-weight:700; font-size:1.1rem;">Pókháló – fix 0–100 skála</div>
-        <div class="small-muted">
-          <span class="legend-dot" style="background:#3b82f6;"></span>{player_a}
-          &nbsp;&nbsp;
-          <span class="legend-dot" style="background:#10b981;"></span>{player_b}
-        </div>
-      </div>
-      <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">
-        {''.join(grid)}
-        {''.join(spokes)}
-        <polygon points="{poly_a}" fill="rgba(59,130,246,0.34)" stroke="#60a5fa" stroke-width="3"/>
-        <polygon points="{poly_b}" fill="rgba(16,185,129,0.34)" stroke="#34d399" stroke-width="3"/>
-        {''.join(text_nodes)}
-      </svg>
-      <div class="small-muted">A tengelyek a kulcsmutatókat jelölik. Kék = {player_a}, zöld = {player_b}.</div>
+      <div style="font-weight:700; font-size:1.1rem; margin-bottom:8px;">Pókháló – fix 0–100 skála</div>
+      <img src="data:image/png;base64,{img_b64}" style="width:100%; max-width:620px; display:block; margin:0 auto;" />
     </div>
     """
 
@@ -473,7 +472,7 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
     st.markdown("### Kulcsmutatók")
     st.markdown(
         f"<div class='small-muted'><span class='legend-dot' style='background:#3b82f6;'></span>{player_a} &nbsp;&nbsp; "
-        f"<span class='legend-dot' style='background:#10b981;'></span>{player_b}</div>",
+        f"<span class='legend-dot' style='background:#10b981;'></span>{player_b}</div><div style='height:12px;'></div>",
         unsafe_allow_html=True
     )
     for _, row in df.iterrows():
