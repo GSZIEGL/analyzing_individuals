@@ -470,7 +470,7 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     """
 
 def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
-    st.markdown("### Kulcsmutatók\n<br>")
+    st.markdown("### Kulcsmutatók")
     st.markdown(
         f"<div class='small-muted'><span class='legend-dot' style='background:#3b82f6;'></span>{player_a} &nbsp;&nbsp; "
         f"<span class='legend-dot' style='background:#10b981;'></span>{player_b}</div>",
