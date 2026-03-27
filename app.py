@@ -532,8 +532,8 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
         f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
     )
 
-    bullets_a = [f"{hu(r['metric'])}: {fmt_val(value)} vs {fmt_val(value)}" for _, r in top_a.iterrows()]
-    bullets_b = [f"{hu(r['metric'])}: {fmt_val(value)} vs {fmt_val(value)}" for _, r in top_b.iterrows()]
+    bullets_a = [f"{hu(r['metric'])}: {fmt_val(r['A'])} vs {fmt_val(r['B'])}" for _, r in top_a.iterrows()]
+    bullets_b = [f"{hu(r['metric'])}: {fmt_val(r['B'])} vs {fmt_val(r['A'])}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
 st.title("Játékos-összehasonlítás")
