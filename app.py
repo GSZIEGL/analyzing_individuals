@@ -478,7 +478,7 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     return f"""
     <div class="card keep-together">
       <div style="font-weight:700; font-size:1.1rem; margin-bottom:8px;">Pókháló – fix 0–100 skála</div>
-      <img src="data:image/png;base64,{img_b64}" style="width:100%; max-width:620px; display:block; margin:0 auto;" />
+      <img style="margin-top:8px;" src="data:image/png;base64,{img_b64}" style="width:100%; max-width:620px; display:block; margin:0 auto;" />
     </div>
     """
 
@@ -503,14 +503,14 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
               <div class="small-muted">{player_a}</div>
               <div class="bar-box"><div class="bar-fill-blue" style="width:{width_a}%;"></div></div>
             </div>
-            <div class="value-label">{:.2f}</div>
+            <div class="value-label">{fmt_val(value)}</div>
           </div>
           <div class="bar-wrap" style="margin-top:8px;">
             <div style="flex:1;">
               <div class="small-muted">{player_b}</div>
               <div class="bar-box"><div class="bar-fill-green" style="width:{width_b}%;"></div></div>
             </div>
-            <div class="value-label">{:.2f}</div>
+            <div class="value-label">{fmt_val(value)}</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -532,8 +532,8 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
         f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
     )
 
-    bullets_a = [f"{hu(r['metric'])}: {:.2f} vs {:.2f}" for _, r in top_a.iterrows()]
-    bullets_b = [f"{hu(r['metric'])}: {:.2f} vs {:.2f}" for _, r in top_b.iterrows()]
+    bullets_a = [f"{hu(r['metric'])}: {fmt_val(value)} vs {fmt_val(value)}" for _, r in top_a.iterrows()]
+    bullets_b = [f"{hu(r['metric'])}: {fmt_val(value)} vs {fmt_val(value)}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
 st.title("Játékos-összehasonlítás")
