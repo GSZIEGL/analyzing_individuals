@@ -38,6 +38,12 @@ html, body, [data-testid="stAppViewContainer"]{
   border-radius: 16px;
   padding: 16px 18px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  overflow:hidden;
+}
+
+.name-card h3{
+  margin:0;
+  font-size:2.2rem;
 }
 
 .small-muted{
@@ -78,26 +84,43 @@ html, body, [data-testid="stAppViewContainer"]{
   font-size:0.92rem;
 }
 .section-title{
-  margin-top:0.5rem;
-  margin-bottom:0.5rem;
-}
-
-.print-note{
-  margin-top:0.35rem;
-  color:var(--muted);
-  font-size:0.88rem;
+  margin-top:0;
+  margin-bottom:0.8rem;
 }
 
 .player-photo-wrap{
   display:flex;
   align-items:center;
   justify-content:center;
-  min-height:260px;
-  max-height:320px;
+  border-radius:16px;
   overflow:hidden;
-  border-radius:14px;
   border:1px solid rgba(255,255,255,0.08);
   background:#0d1117;
+}
+
+.player-photo-wrap img{
+  display:block;
+  width:100%;
+  height:auto;
+  object-fit:cover;
+}
+
+.radar-card svg{
+  display:block;
+  width:100%;
+  height:auto;
+  max-width:100%;
+}
+
+.radar-card{
+  overflow:hidden;
+}
+
+.radar-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(0,0.92fr);
+  gap:24px;
+  align-items:start;
 }
 
 .page-break{
@@ -106,15 +129,23 @@ html, body, [data-testid="stAppViewContainer"]{
   margin:24px 0;
 }
 
+@media (max-width: 1100px){
+  .radar-grid{
+    grid-template-columns:1fr;
+  }
+}
+
 @media print {
   @page{
     size:A4 portrait;
-    margin:12mm 10mm 12mm 10mm;
+    margin:10mm 9mm 10mm 9mm;
   }
 
   html, body{
     background:white !important;
     color:black !important;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
   }
 
   [data-testid="stSidebar"],
@@ -125,7 +156,8 @@ html, body, [data-testid="stAppViewContainer"]{
   [data-testid="stStatusWidget"],
   [data-testid="stFileUploaderDropzoneInstructions"],
   .stDownloadButton,
-  .print-hide{
+  .print-hide,
+  hr{
     display:none !important;
   }
 
@@ -139,6 +171,10 @@ html, body, [data-testid="stAppViewContainer"]{
     margin:0 !important;
   }
 
+  [data-testid="stVerticalBlock"]{
+    gap:0.4rem !important;
+  }
+
   .card{
     background:white !important;
     color:black !important;
@@ -146,31 +182,31 @@ html, body, [data-testid="stAppViewContainer"]{
     box-shadow:none !important;
     break-inside:avoid;
     page-break-inside:avoid;
+    margin-bottom:8px !important;
   }
 
-  .small-muted, .print-note{
+  .small-muted{
     color:#444 !important;
   }
 
-  h1, h2, h3, h4, p, div, span, strong, li{
+  h1, h2, h3, h4, p, div, span, strong, li, label{
     color:black !important;
   }
 
   .player-photo-wrap{
-    min-height:180px !important;
-    max-height:220px !important;
     background:white !important;
     border:1px solid #d9d9d9 !important;
     break-inside:avoid;
     page-break-inside:avoid;
   }
 
-  .stImage,
-  [data-testid="stImage"]{
-    break-inside:avoid;
-    page-break-inside:avoid;
+  .player-photo-wrap img{
+    max-height:86mm;
+    object-fit:contain;
   }
 
+  .stImage,
+  [data-testid="stImage"],
   [data-testid="column"]{
     break-inside:avoid;
     page-break-inside:avoid;
@@ -193,12 +229,10 @@ html, body, [data-testid="stAppViewContainer"]{
     fill:black !important;
   }
 
-  .first-page-block{
-    break-inside:avoid;
-    page-break-inside:avoid;
-  }
-
-  .keep-together{
+  .first-page-block,
+  .keep-together,
+  .radar-grid,
+  .radar-card{
     break-inside:avoid;
     page-break-inside:avoid;
   }
@@ -489,8 +523,7 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
     bullets_b = [f"{hu(r['metric'])}: {r['b']:.2f} vs {r['a']:.2f}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
-st.title("⚽ ELITE DESIGN MODE – nyomtatásbarát verzió")
-st.caption("A fókusz most a jól tördelhető, nyomtatható oldalelrendezésen van.")
+st.title("Játékos-összehasonlítás")
 
 with st.sidebar:
     st.header("Feltöltések")
@@ -537,34 +570,27 @@ st.markdown("<div class='first-page-block'>", unsafe_allow_html=True)
 
 c1, c2 = st.columns(2)
 with c1:
-    st.markdown(f"<div class='card keep-together'><h3>{player_a}</h3><div class='small-muted'>Első játékos</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together name-card'><h3>{player_a}</h3></div>", unsafe_allow_html=True)
     if img_a is not None:
-        st.markdown("<div class='player-photo-wrap'>", unsafe_allow_html=True)
         st.image(img_a, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 with c2:
-    st.markdown(f"<div class='card keep-together'><h3>{player_b}</h3><div class='small-muted'>Második játékos</div></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together name-card'><h3>{player_b}</h3></div>", unsafe_allow_html=True)
     if img_b is not None:
-        st.markdown("<div class='player-photo-wrap'>", unsafe_allow_html=True)
         st.image(img_b, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
-st.markdown("---")
-
-left, right = st.columns([1.05, 0.95])
-with left:
-    st.markdown(build_radar_svg(filtered, player_a, player_b), unsafe_allow_html=True)
-with right:
-    st.markdown("<div class='card keep-together'><h3 class='section-title'>Konklúzió</h3>", unsafe_allow_html=True)
-    summary, strengths_a, strengths_b = conclusions(filtered, player_a, player_b)
-    st.write(summary)
-    st.markdown(f"**{player_a} fő erősségei**")
-    for item in strengths_a:
-        st.write("•", item)
-    st.markdown(f"**{player_b} fő erősségei**")
-    for item in strengths_b:
-        st.write("•", item)
-    st.markdown("</div>", unsafe_allow_html=True)
+summary, strengths_a, strengths_b = conclusions(filtered, player_a, player_b)
+st.markdown("<div class='radar-grid'>", unsafe_allow_html=True)
+st.markdown(build_radar_svg(filtered, player_a, player_b), unsafe_allow_html=True)
+st.markdown("<div class='card keep-together'><h3 class='section-title'>Konklúzió</h3>", unsafe_allow_html=True)
+st.write(summary)
+st.markdown(f"**{player_a} fő erősségei**")
+for item in strengths_a:
+    st.write("•", item)
+st.markdown(f"**{player_b} fő erősségei**")
+for item in strengths_b:
+    st.write("•", item)
+st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -578,9 +604,3 @@ table_show = filtered.copy()
 table_show["Mutató"] = table_show["metric"].map(hu)
 table_show = table_show[["Mutató", "a", "b"]].rename(columns={"a": "Játékos A", "b": "Játékos B"})
 st.table(table_show)
-st.markdown(
-    f"<div class='print-note'>Játékos A = {player_a} | Játékos B = {player_b}. "
-    f"Nyomtatáskor az első oldalra a fejléc, a két kép, a pókháló és a konklúzió kerül, "
-    f"a kulcsmutatók új oldalon kezdődnek.</div>",
-    unsafe_allow_html=True
-)
