@@ -532,8 +532,8 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
         f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
     )
 
-    bullets_a = [f"{hu(r['metric'])}: {fmt_val(r['A'])} vs {fmt_val(r['B'])}" for _, r in top_a.iterrows()]
-    bullets_b = [f"{hu(r['metric'])}: {fmt_val(r['B'])} vs {fmt_val(r['A'])}" for _, r in top_b.iterrows()]
+    bullets_a = [f"{hu(r['metric'])}: {fmt_val(r['a'])} vs {fmt_val(r['b'])}" for _, r in top_a.iterrows()]
+    bullets_b = [f"{hu(r['metric'])}: {fmt_val(r['b'])} vs {fmt_val(r['a'])}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
 st.title("Játékos-összehasonlítás")
@@ -583,11 +583,11 @@ st.markdown("<div class='first-page-block'>", unsafe_allow_html=True)
 
 c1, c2 = st.columns(2)
 with c1:
-    st.markdown(f"<div class='card keep-together name-card'><h3>{player_a}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together name-card' style='margin-bottom:14px;'><h3>{player_a}</h3></div>", unsafe_allow_html=True)
     if img_a is not None:
         st.image(img_a, use_container_width=True)
 with c2:
-    st.markdown(f"<div class='card keep-together name-card'><h3>{player_b}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card keep-together name-card' style='margin-bottom:14px;'><h3>{player_b}</h3></div>", unsafe_allow_html=True)
     if img_b is not None:
         st.image(img_b, use_container_width=True)
 
