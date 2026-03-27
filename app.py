@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+import base64
 
 st.set_page_config(page_title="Scout Comparison App", layout="wide")
 
