@@ -503,14 +503,14 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
               <div class="small-muted">{player_a}</div>
               <div class="bar-box"><div class="bar-fill-blue" style="width:{width_a}%;"></div></div>
             </div>
-            <div class="value-label">{fmt_val(value)}</div>
+            <div class="value-label">{fmt_val(val) if 'val' in locals() else ''}</div>
           </div>
           <div class="bar-wrap" style="margin-top:8px;">
             <div style="flex:1;">
               <div class="small-muted">{player_b}</div>
               <div class="bar-box"><div class="bar-fill-green" style="width:{width_b}%;"></div></div>
             </div>
-            <div class="value-label">{fmt_val(value)}</div>
+            <div class="value-label">{fmt_val(val) if 'val' in locals() else ''}</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
