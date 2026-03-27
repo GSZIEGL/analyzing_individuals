@@ -1,3 +1,12 @@
+
+def fmt_val(x):
+    try:
+        x = float(x)
+        if x.is_integer():
+            return str(int(x))
+        return str(round(x,2)).rstrip('0').rstrip('.')
+    except:
+        return x
 import io
 import math
 from typing import Dict, List, Tuple
@@ -138,6 +147,10 @@ html, body, [data-testid="stAppViewContainer"]{
 }
 
 @media print {
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
   @page{
     size:A4 portrait;
     margin:10mm 9mm 10mm 9mm;
@@ -490,14 +503,14 @@ def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
               <div class="small-muted">{player_a}</div>
               <div class="bar-box"><div class="bar-fill-blue" style="width:{width_a}%;"></div></div>
             </div>
-            <div class="value-label">{row["a"]:.2f}</div>
+            <div class="value-label">{:.2f}</div>
           </div>
           <div class="bar-wrap" style="margin-top:8px;">
             <div style="flex:1;">
               <div class="small-muted">{player_b}</div>
               <div class="bar-box"><div class="bar-fill-green" style="width:{width_b}%;"></div></div>
             </div>
-            <div class="value-label">{row["b"]:.2f}</div>
+            <div class="value-label">{:.2f}</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -519,8 +532,8 @@ def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, Li
         f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
     )
 
-    bullets_a = [f"{hu(r['metric'])}: {r['a']:.2f} vs {r['b']:.2f}" for _, r in top_a.iterrows()]
-    bullets_b = [f"{hu(r['metric'])}: {r['b']:.2f} vs {r['a']:.2f}" for _, r in top_b.iterrows()]
+    bullets_a = [f"{hu(r['metric'])}: {:.2f} vs {:.2f}" for _, r in top_a.iterrows()]
+    bullets_b = [f"{hu(r['metric'])}: {:.2f} vs {:.2f}" for _, r in top_b.iterrows()]
     return text, bullets_a, bullets_b
 
 st.title("Játékos-összehasonlítás")
