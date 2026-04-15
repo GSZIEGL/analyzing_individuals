@@ -1,15 +1,15 @@
-
 def fmt_val(x):
     try:
         x = float(x)
         if x.is_integer():
             return str(int(x))
-        return str(round(x,2)).rstrip('0').rstrip('.')
+        return str(round(x, 2)).rstrip('0').rstrip('.')
     except:
         return x
+
 import io
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,6 +31,8 @@ st.markdown("""
   --blue2:#60a5fa;
   --green:#10b981;
   --green2:#34d399;
+  --orange:#f59e0b;
+  --orange2:#fbbf24;
 }
 
 .block-container{
@@ -88,6 +90,10 @@ html, body, [data-testid="stAppViewContainer"]{
 .bar-fill-green{
   height:100%;
   background: linear-gradient(90deg, var(--green) 0%, var(--green2) 100%);
+}
+.bar-fill-orange{
+  height:100%;
+  background: linear-gradient(90deg, var(--orange) 0%, var(--orange2) 100%);
 }
 .value-label{
   width:72px;
@@ -240,6 +246,10 @@ html, body, [data-testid="stAppViewContainer"]{
     background:#10b981 !important;
   }
 
+  .bar-fill-orange{
+    background:#f59e0b !important;
+  }
+
   svg text{
     fill:black !important;
   }
@@ -320,6 +330,12 @@ DEFAULT_CEILINGS: Dict[str, float] = {
     "Air challenges won, %": 1.00,
 }
 
+PLAYER_COLORS = [
+    {"name": "Kék", "line": "#60a5fa", "fill": "#3b82f6", "bar_class": "bar-fill-blue"},
+    {"name": "Zöld", "line": "#34d399", "fill": "#10b981", "bar_class": "bar-fill-green"},
+    {"name": "Narancs", "line": "#fbbf24", "fill": "#f59e0b", "bar_class": "bar-fill-orange"},
+]
+
 def hu(metric: str) -> str:
     return LABELS_HU.get(metric, metric)
 
@@ -358,74 +374,120 @@ def normalize_player_name(name: str) -> str:
     }
     return mapping.get(name, name)
 
-def extract_names(df: pd.DataFrame) -> Tuple[str, str]:
-    if df.shape[0] > 1 and df.shape[1] > 3:
-        row1_c2 = str(df.iloc[1, 2]).strip()
-        row1_c3 = str(df.iloc[1, 3]).strip()
-        if row1_c2 and row1_c3 and row1_c2.lower() != "nan" and row1_c3.lower() != "nan":
-            return normalize_player_name(row1_c2), normalize_player_name(row1_c3)
+def detect_player_columns(df: pd.DataFrame) -> List[int]:
+    candidates = []
+    for col in range(2, df.shape[1]):
+        numeric_count = 0
+        for i in range(len(df)):
+            val = safe_float(df.iloc[i, col])
+            if pd.notna(val):
+                numeric_count += 1
+        if numeric_count >= 3:
+            candidates.append(col)
+    return candidates[:3]
 
-    for i in range(min(6, len(df))):
-        c2 = str(df.iloc[i, 2]).strip() if df.shape[1] > 2 else ""
-        c3 = str(df.iloc[i, 3]).strip() if df.shape[1] > 3 else ""
-        if c2 and c3 and c2.lower() != "nan" and c3.lower() != "nan":
-            if "2025/" in c2 or "2026" in c2 or "2025/" in c3 or "2026" in c3:
+def extract_names(df: pd.DataFrame, player_cols: List[int]) -> List[str]:
+    names = []
+
+    if df.shape[0] > 1:
+        for col in player_cols:
+            cell = str(df.iloc[1, col]).strip()
+            if cell and cell.lower() != "nan":
+                names.append(normalize_player_name(cell))
+            else:
+                names.append("")
+        if all(n != "" for n in names):
+            return names
+
+    names = []
+    for col in player_cols:
+        found_name = None
+        for i in range(min(6, len(df))):
+            cell = str(df.iloc[i, col]).strip()
+            if not cell or cell.lower() == "nan":
                 continue
-            return normalize_player_name(c2), normalize_player_name(c3)
-    return "Játékos 1", "Játékos 2"
+            if "2025/" in cell or "2026" in cell or "2024/" in cell:
+                continue
+            if pd.notna(safe_float(cell)):
+                continue
+            found_name = normalize_player_name(cell)
+            break
+        names.append(found_name if found_name else f"Játékos {len(names)+1}")
 
-def extract_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    return names
+
+def extract_metrics(df: pd.DataFrame, player_cols: List[int]) -> pd.DataFrame:
     rows = []
     for i in range(len(df)):
         metric = str(df.iloc[i, 0]).strip()
         if metric.lower() in {"nan", "", "index", "minutes played", "position"}:
             continue
-        if df.shape[1] < 4:
-            continue
-        a = safe_float(df.iloc[i, 2])
-        b = safe_float(df.iloc[i, 3])
-        if pd.isna(a) and pd.isna(b):
-            continue
-        rows.append({"metric": metric, "a": a, "b": b})
+
+        row_data = {"metric": metric}
+        valid_numeric = False
+
+        for idx, col in enumerate(player_cols):
+            val = safe_float(df.iloc[i, col]) if col < df.shape[1] else np.nan
+            row_data[f"p{idx+1}"] = val
+            if pd.notna(val):
+                valid_numeric = True
+
+        if valid_numeric:
+            rows.append(row_data)
+
     return pd.DataFrame(rows)
 
 def pick_metrics(all_data: pd.DataFrame, position: str, custom_metrics: List[str]) -> pd.DataFrame:
     wanted = custom_metrics if position == "Egyedi" else POSITION_METRICS[position]
     return all_data[all_data["metric"].isin(wanted)].copy().head(9)
 
-def fixed_scores(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-    a_scores, b_scores = [], []
-    for _, row in df.iterrows():
-        dynamic = 1.0
-        if pd.notna(row["a"]) and pd.notna(row["b"]):
-            dynamic = max(float(row["a"]), float(row["b"])) * 1.15
-        ceiling = DEFAULT_CEILINGS.get(row["metric"], dynamic if dynamic > 0 else 1.0)
-        if ceiling == 0 or pd.isna(row["a"]) or pd.isna(row["b"]):
-            a_scores.append(np.nan)
-            b_scores.append(np.nan)
-            continue
-        a_scores.append(min((row["a"] / ceiling) * 100, 100))
-        b_scores.append(min((row["b"] / ceiling) * 100, 100))
-    return np.array(a_scores, dtype=float), np.array(b_scores, dtype=float)
+def fixed_scores(df: pd.DataFrame, n_players: int) -> Dict[str, np.ndarray]:
+    scores = {f"p{i+1}": [] for i in range(n_players)}
 
-def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
+    for _, row in df.iterrows():
+        vals = []
+        for i in range(n_players):
+            v = row.get(f"p{i+1}", np.nan)
+            if pd.notna(v):
+                vals.append(float(v))
+
+        dynamic = max(vals) * 1.15 if vals else 1.0
+        ceiling = DEFAULT_CEILINGS.get(row["metric"], dynamic if dynamic > 0 else 1.0)
+
+        for i in range(n_players):
+            v = row.get(f"p{i+1}", np.nan)
+            if ceiling == 0 or pd.isna(v):
+                scores[f"p{i+1}"].append(np.nan)
+            else:
+                scores[f"p{i+1}"].append(min((v / ceiling) * 100, 100))
+
+    for k in scores:
+        scores[k] = np.array(scores[k], dtype=float)
+
+    return scores
+
+def build_radar_svg(df: pd.DataFrame, player_names: List[str]) -> str:
     if len(df) < 3:
         return "<div class='small-muted'>Nincs elég adat a pókhálóhoz.</div>"
 
+    n_players = len(player_names)
     labels = [hu(m) for m in df["metric"].tolist()]
-    a_scores, b_scores = fixed_scores(df)
-    valid = ~np.isnan(a_scores) & ~np.isnan(b_scores)
+    scores = fixed_scores(df, n_players)
+
+    valid = np.ones(len(df), dtype=bool)
+    for i in range(n_players):
+        valid &= ~np.isnan(scores[f"p{i+1}"])
+
     labels = [labels[i] for i in range(len(labels)) if valid[i]]
-    a_scores = a_scores[valid]
-    b_scores = b_scores[valid]
+    filtered_scores = {}
+    for i in range(n_players):
+        filtered_scores[f"p{i+1}"] = scores[f"p{i+1}"][valid]
 
     if len(labels) < 3:
         return "<div class='small-muted'>Nincs elég adat a pókhálóhoz.</div>"
 
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
     angles_closed = np.concatenate([angles, [angles[0]]])
-    a_closed = np.concatenate([a_scores, [a_scores[0]]])
-    b_closed = np.concatenate([b_scores, [b_scores[0]]])
 
     fig, ax = plt.subplots(figsize=(6.2, 6.2), subplot_kw={"polar": True}, facecolor="#0f172a")
     ax.set_facecolor("#0f172a")
@@ -445,22 +507,26 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     ax.spines["polar"].set_color("#e2e8f0")
     ax.spines["polar"].set_linewidth(1.2)
 
-    ax.plot(angles_closed, a_closed, color="#60a5fa", linewidth=2.8)
-    ax.fill(angles_closed, a_closed, color="#3b82f6", alpha=0.28)
-
-    ax.plot(angles_closed, b_closed, color="#34d399", linewidth=2.8)
-    ax.fill(angles_closed, b_closed, color="#10b981", alpha=0.28)
-
     from matplotlib.lines import Line2D
-    legend_items = [
-        Line2D([0], [0], color="#60a5fa", lw=3, label=player_a),
-        Line2D([0], [0], color="#34d399", lw=3, label=player_b),
-    ]
+    legend_items = []
+
+    for i, player_name in enumerate(player_names):
+        color_cfg = PLAYER_COLORS[i]
+        arr = filtered_scores[f"p{i+1}"]
+        closed = np.concatenate([arr, [arr[0]]])
+
+        ax.plot(angles_closed, closed, color=color_cfg["line"], linewidth=2.8)
+        ax.fill(angles_closed, closed, color=color_cfg["fill"], alpha=0.22)
+
+        legend_items.append(
+            Line2D([0], [0], color=color_cfg["line"], lw=3, label=player_name)
+        )
+
     leg = ax.legend(
         handles=legend_items,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.16),
-        ncol=2,
+        bbox_to_anchor=(0.5, 1.18),
+        ncol=min(3, len(player_names)),
         frameon=False,
         fontsize=10,
     )
@@ -482,59 +548,121 @@ def build_radar_svg(df: pd.DataFrame, player_a: str, player_b: str) -> str:
     </div>
     """
 
-def render_metric_bars(df: pd.DataFrame, player_a: str, player_b: str):
+def render_metric_bars(df: pd.DataFrame, player_names: List[str]):
     st.markdown("### Kulcsmutatók")
+
+    legend_html_parts = []
+    for i, name in enumerate(player_names):
+        dot_color = PLAYER_COLORS[i]["fill"]
+        legend_html_parts.append(
+            f"<span class='legend-dot' style='background:{dot_color};'></span>{name}"
+        )
+
     st.markdown(
-        f"<div class='small-muted'><span class='legend-dot' style='background:#3b82f6;'></span>{player_a} &nbsp;&nbsp; "
-        f"<span class='legend-dot' style='background:#10b981;'></span>{player_b}</div><div style='height:12px;'></div>",
+        f"<div class='small-muted'>{' &nbsp;&nbsp; '.join(legend_html_parts)}</div><div style='height:12px;'></div>",
         unsafe_allow_html=True
     )
+
     for _, row in df.iterrows():
-        maxv = max(row["a"], row["b"]) if pd.notna(row["a"]) and pd.notna(row["b"]) else 1.0
+        vals = []
+        for i in range(len(player_names)):
+            v = row.get(f"p{i+1}", np.nan)
+            if pd.notna(v):
+                vals.append(v)
+
+        maxv = max(vals) if vals else 1.0
         if maxv == 0:
             maxv = 1.0
-        width_a = int((row["a"] / maxv) * 100) if pd.notna(row["a"]) else 0
-        width_b = int((row["b"] / maxv) * 100) if pd.notna(row["b"]) else 0
-        st.markdown(f"""
+
+        html = f"""
         <div class="card metric-row keep-together">
           <div class="metric-label">{hu(row["metric"])}</div>
-          <div class="bar-wrap">
-            <div style="flex:1;">
-              <div class="small-muted">{player_a}</div>
-              <div class="bar-box"><div class="bar-fill-blue" style="width:{width_a}%;"></div></div>
-            </div>
-            <div class="value-label">{fmt_val(val) if 'val' in locals() else ''}</div>
-          </div>
-          <div class="bar-wrap" style="margin-top:8px;">
-            <div style="flex:1;">
-              <div class="small-muted">{player_b}</div>
-              <div class="bar-box"><div class="bar-fill-green" style="width:{width_b}%;"></div></div>
-            </div>
-            <div class="value-label">{fmt_val(val) if 'val' in locals() else ''}</div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        """
 
-def conclusions(df: pd.DataFrame, player_a: str, player_b: str) -> Tuple[str, List[str], List[str]]:
-    tmp = df.dropna(subset=["a", "b"]).copy()
+        for i, name in enumerate(player_names):
+            v = row.get(f"p{i+1}", np.nan)
+            width = int((v / maxv) * 100) if pd.notna(v) else 0
+            bar_class = PLAYER_COLORS[i]["bar_class"]
+            display_val = fmt_val(v) if pd.notna(v) else "-"
+
+            html += f"""
+            <div class="bar-wrap" style="margin-top:{'0' if i == 0 else '8px'};">
+              <div style="flex:1;">
+                <div class="small-muted">{name}</div>
+                <div class="bar-box"><div class="{bar_class}" style="width:{width}%;"></div></div>
+              </div>
+              <div class="value-label">{display_val}</div>
+            </div>
+            """
+
+        html += "</div>"
+        st.markdown(html, unsafe_allow_html=True)
+
+def conclusions(df: pd.DataFrame, player_names: List[str]):
+    player_cols = [f"p{i+1}" for i in range(len(player_names))]
+    tmp = df.dropna(subset=player_cols, how="all").copy()
+
     if tmp.empty:
-        return "Nincs elég adat a konklúzióhoz.", [], []
+        return "Nincs elég adat a konklúzióhoz.", {}
 
-    tmp["diff"] = tmp["a"] - tmp["b"]
-    better_a = int((tmp["a"] > tmp["b"]).sum())
-    better_b = int((tmp["b"] > tmp["a"]).sum())
+    wins = {name: 0 for name in player_names}
+    strengths = {name: [] for name in player_names}
 
-    top_a = tmp.sort_values("diff", ascending=False).head(3)
-    top_b = tmp.sort_values("diff", ascending=True).head(3)
+    for _, row in tmp.iterrows():
+        vals = {player_names[i]: row.get(f"p{i+1}", np.nan) for i in range(len(player_names))}
+        valid_vals = {k: v for k, v in vals.items() if pd.notna(v)}
 
-    text = (
-        f"{player_a} {better_a} kulcsmutatóban jobb, míg {player_b} {better_b} kulcsmutatóban erősebb. "
-        f"A kiválasztott poszthoz tartozó fő mutatók alapján ez inkább profilkülönbség, mint abszolút fölény."
+        if len(valid_vals) < 2:
+            continue
+
+        best_player = max(valid_vals, key=valid_vals.get)
+        wins[best_player] += 1
+
+    for i, name in enumerate(player_names):
+        diffs = []
+        my_col = f"p{i+1}"
+
+        for _, row in tmp.iterrows():
+            my_val = row.get(my_col, np.nan)
+            if pd.isna(my_val):
+                continue
+
+            others = []
+            for j in range(len(player_names)):
+                if i == j:
+                    continue
+                other_val = row.get(f"p{j+1}", np.nan)
+                if pd.notna(other_val):
+                    others.append(other_val)
+
+            if not others:
+                continue
+
+            avg_others = np.mean(others)
+            diffs.append({
+                "metric": row["metric"],
+                "my_val": my_val,
+                "others_avg": avg_others,
+                "diff": my_val - avg_others
+            })
+
+        diffs_df = pd.DataFrame(diffs)
+        if not diffs_df.empty:
+            top = diffs_df.sort_values("diff", ascending=False).head(3)
+            strengths[name] = [
+                f"{hu(r['metric'])}: {fmt_val(r['my_val'])} vs átlag {fmt_val(r['others_avg'])}"
+                for _, r in top.iterrows()
+            ]
+
+    ranking = sorted(wins.items(), key=lambda x: x[1], reverse=True)
+    ranking_text = ", ".join([f"{name}: {count}" for name, count in ranking])
+
+    summary = (
+        f"A kiválasztott kulcsmutatók alapján a legtöbb első helyezést ez a sorrend adja: {ranking_text}. "
+        f"Ez inkább profilkülönbséget mutat, nem feltétlen abszolút fölényt."
     )
 
-    bullets_a = [f"{hu(r['metric'])}: {fmt_val(r['a'])} vs {fmt_val(r['b'])}" for _, r in top_a.iterrows()]
-    bullets_b = [f"{hu(r['metric'])}: {fmt_val(r['b'])} vs {fmt_val(r['a'])}" for _, r in top_b.iterrows()]
-    return text, bullets_a, bullets_b
+    return summary, strengths
 
 st.title("Játékos-összehasonlítás")
 
@@ -543,6 +671,7 @@ with st.sidebar:
     uploaded = st.file_uploader("CSV feltöltése", type=["csv"])
     img_a = st.file_uploader("1. játékos képe", type=["png", "jpg", "jpeg", "webp"])
     img_b = st.file_uploader("2. játékos képe", type=["png", "jpg", "jpeg", "webp"])
+    img_c = st.file_uploader("3. játékos képe", type=["png", "jpg", "jpeg", "webp"])
 
 if uploaded is None:
     st.info("Tölts fel egy CSV-fájlt a kezdéshez.")
@@ -554,8 +683,14 @@ except Exception as e:
     st.error(f"Nem sikerült beolvasni a fájlt: {e}")
     st.stop()
 
-player_a, player_b = extract_names(df_raw)
-all_data = extract_metrics(df_raw)
+player_cols = detect_player_columns(df_raw)
+
+if len(player_cols) < 2:
+    st.error("Legalább 2 játékos adat-oszlop szükséges a fájlban.")
+    st.stop()
+
+player_names = extract_names(df_raw, player_cols)
+all_data = extract_metrics(df_raw, player_cols)
 
 if all_data.empty:
     st.error("Nem találtam értelmezhető numerikus adatokat a fájlban.")
@@ -581,27 +716,33 @@ if filtered.empty:
 
 st.markdown("<div class='first-page-block'>", unsafe_allow_html=True)
 
-c1, c2 = st.columns(2)
-with c1:
-    st.markdown(f"<div class='card keep-together name-card' style='margin-bottom:14px;'><h3>{player_a}</h3></div>", unsafe_allow_html=True)
-    if img_a is not None:
-        st.image(img_a, use_container_width=True)
-with c2:
-    st.markdown(f"<div class='card keep-together name-card' style='margin-bottom:14px;'><h3>{player_b}</h3></div>", unsafe_allow_html=True)
-    if img_b is not None:
-        st.image(img_b, use_container_width=True)
+imgs = [img_a, img_b, img_c]
+cols = st.columns(len(player_names))
 
-summary, strengths_a, strengths_b = conclusions(filtered, player_a, player_b)
+for i, name in enumerate(player_names):
+    with cols[i]:
+        st.markdown(
+            f"<div class='card keep-together name-card' style='margin-bottom:14px;'><h3>{name}</h3></div>",
+            unsafe_allow_html=True
+        )
+        if i < len(imgs) and imgs[i] is not None:
+            st.image(imgs[i], use_container_width=True)
+
+summary, strengths = conclusions(filtered, player_names)
+
 st.markdown("<div class='radar-grid'>", unsafe_allow_html=True)
-st.markdown(build_radar_svg(filtered, player_a, player_b), unsafe_allow_html=True)
+st.markdown(build_radar_svg(filtered, player_names), unsafe_allow_html=True)
 st.markdown("<div class='card keep-together'><h3 class='section-title'>Konklúzió</h3>", unsafe_allow_html=True)
 st.write(summary)
-st.markdown(f"**{player_a} fő erősségei**")
-for item in strengths_a:
-    st.write("•", item)
-st.markdown(f"**{player_b} fő erősségei**")
-for item in strengths_b:
-    st.write("•", item)
+
+for name in player_names:
+    st.markdown(f"**{name} fő erősségei**")
+    if strengths.get(name):
+        for item in strengths[name]:
+            st.write("•", item)
+    else:
+        st.write("• Nincs elég adat.")
+
 st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -609,11 +750,22 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<hr class='page-break'>", unsafe_allow_html=True)
 
-render_metric_bars(filtered, player_a, player_b)
+render_metric_bars(filtered, player_names)
 
 st.markdown("---")
 st.subheader("Részletes táblázat")
 table_show = filtered.copy()
 table_show["Mutató"] = table_show["metric"].map(hu)
-table_show = table_show[["Mutató", "a", "b"]].rename(columns={"a": "Játékos A", "b": "Játékos B"})
+
+keep_cols = ["Mutató"]
+rename_map = {}
+for i, name in enumerate(player_names):
+    col = f"p{i+1}"
+    keep_cols.append(col)
+    rename_map[col] = name
+
+table_show = table_show[["metric"] + [f"p{i+1}" for i in range(len(player_names))]].copy()
+table_show["Mutató"] = table_show["metric"].map(hu)
+table_show = table_show[keep_cols].rename(columns=rename_map)
+
 st.table(table_show)
