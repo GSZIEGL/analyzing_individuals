@@ -1,21 +1,22 @@
+
 def fmt_val(x):
     try:
         x = float(x)
         if x.is_integer():
             return str(int(x))
-        return str(round(x, 2)).rstrip('0').rstrip('.')
+        return str(round(x, 2)).rstrip("0").rstrip(".")
     except:
         return x
 
+
 import io
-import math
 from typing import Dict, List
 
-import numpy as np
+import base64
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
-import base64
 
 st.set_page_config(page_title="Scout Comparison App", layout="wide")
 
@@ -336,8 +337,10 @@ PLAYER_COLORS = [
     {"name": "Narancs", "line": "#fbbf24", "fill": "#f59e0b", "bar_class": "bar-fill-orange"},
 ]
 
+
 def hu(metric: str) -> str:
     return LABELS_HU.get(metric, metric)
+
 
 def safe_float(v):
     if pd.isna(v):
@@ -349,6 +352,7 @@ def safe_float(v):
         return float(s)
     except Exception:
         return np.nan
+
 
 def try_read_csv(uploaded_file) -> pd.DataFrame:
     raw = uploaded_file.getvalue()
@@ -365,6 +369,7 @@ def try_read_csv(uploaded_file) -> pd.DataFrame:
                 continue
     raise ValueError(f"Nem sikerült beolvasni a CSV-t. Utolsó hiba: {last_err}")
 
+
 def normalize_player_name(name: str) -> str:
     name = str(name).strip()
     mapping = {
@@ -373,6 +378,7 @@ def normalize_player_name(name: str) -> str:
         "Máté Gyurkó": "Gyurkó Máté"
     }
     return mapping.get(name, name)
+
 
 def detect_player_columns(df: pd.DataFrame) -> List[int]:
     candidates = []
@@ -386,13 +392,14 @@ def detect_player_columns(df: pd.DataFrame) -> List[int]:
             candidates.append(col)
     return candidates[:3]
 
+
 def extract_names(df: pd.DataFrame, player_cols: List[int]) -> List[str]:
     names = []
 
     if df.shape[0] > 1:
         for col in player_cols:
             cell = str(df.iloc[1, col]).strip()
-            if cell and cell.lower() != "nan":
+            if cell and cell.lower() != "nan" and pd.isna(safe_float(cell)):
                 names.append(normalize_player_name(cell))
             else:
                 names.append("")
@@ -416,6 +423,7 @@ def extract_names(df: pd.DataFrame, player_cols: List[int]) -> List[str]:
 
     return names
 
+
 def extract_metrics(df: pd.DataFrame, player_cols: List[int]) -> pd.DataFrame:
     rows = []
     for i in range(len(df)):
@@ -437,9 +445,11 @@ def extract_metrics(df: pd.DataFrame, player_cols: List[int]) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
+
 def pick_metrics(all_data: pd.DataFrame, position: str, custom_metrics: List[str]) -> pd.DataFrame:
     wanted = custom_metrics if position == "Egyedi" else POSITION_METRICS[position]
     return all_data[all_data["metric"].isin(wanted)].copy().head(9)
+
 
 def fixed_scores(df: pd.DataFrame, n_players: int) -> Dict[str, np.ndarray]:
     scores = {f"p{i+1}": [] for i in range(n_players)}
@@ -465,6 +475,7 @@ def fixed_scores(df: pd.DataFrame, n_players: int) -> Dict[str, np.ndarray]:
         scores[k] = np.array(scores[k], dtype=float)
 
     return scores
+
 
 def build_radar_svg(df: pd.DataFrame, player_names: List[str]) -> str:
     if len(df) < 3:
@@ -548,6 +559,7 @@ def build_radar_svg(df: pd.DataFrame, player_names: List[str]) -> str:
     </div>
     """
 
+
 def render_metric_bars(df: pd.DataFrame, player_names: List[str]):
     st.markdown("### Kulcsmutatók")
 
@@ -574,10 +586,8 @@ def render_metric_bars(df: pd.DataFrame, player_names: List[str]):
         if maxv == 0:
             maxv = 1.0
 
-        html = f"""
-        <div class="card metric-row keep-together">
-          <div class="metric-label">{hu(row["metric"])}</div>
-        """
+        html = f'<div class="card metric-row keep-together">'
+        html += f'<div class="metric-label">{hu(row["metric"])}</div>'
 
         for i, name in enumerate(player_names):
             v = row.get(f"p{i+1}", np.nan)
@@ -585,18 +595,19 @@ def render_metric_bars(df: pd.DataFrame, player_names: List[str]):
             bar_class = PLAYER_COLORS[i]["bar_class"]
             display_val = fmt_val(v) if pd.notna(v) else "-"
 
-            html += f"""
-            <div class="bar-wrap" style="margin-top:{'0' if i == 0 else '8px'};">
-              <div style="flex:1;">
-                <div class="small-muted">{name}</div>
-                <div class="bar-box"><div class="{bar_class}" style="width:{width}%;"></div></div>
-              </div>
-              <div class="value-label">{display_val}</div>
-            </div>
-            """
+            html += (
+                f'<div class="bar-wrap" style="margin-top:{"0" if i == 0 else "8px"};">'
+                f'<div style="flex:1;">'
+                f'<div class="small-muted">{name}</div>'
+                f'<div class="bar-box"><div class="{bar_class}" style="width:{width}%;"></div></div>'
+                f'</div>'
+                f'<div class="value-label">{display_val}</div>'
+                f'</div>'
+            )
 
-        html += "</div>"
+        html += '</div>'
         st.markdown(html, unsafe_allow_html=True)
+
 
 def conclusions(df: pd.DataFrame, player_names: List[str]):
     player_cols = [f"p{i+1}" for i in range(len(player_names))]
@@ -663,6 +674,7 @@ def conclusions(df: pd.DataFrame, player_names: List[str]):
     )
 
     return summary, strengths
+
 
 st.title("Játékos-összehasonlítás")
 
@@ -754,18 +766,14 @@ render_metric_bars(filtered, player_names)
 
 st.markdown("---")
 st.subheader("Részletes táblázat")
+
 table_show = filtered.copy()
 table_show["Mutató"] = table_show["metric"].map(hu)
 
-keep_cols = ["Mutató"]
-rename_map = {}
-for i, name in enumerate(player_names):
-    col = f"p{i+1}"
-    keep_cols.append(col)
-    rename_map[col] = name
+player_value_cols = [f"p{i+1}" for i in range(len(player_names))]
+table_show = table_show[["Mutató"] + player_value_cols].copy()
 
-table_show = table_show[["metric"] + [f"p{i+1}" for i in range(len(player_names))]].copy()
-table_show["Mutató"] = table_show["metric"].map(hu)
-table_show = table_show[keep_cols].rename(columns=rename_map)
+rename_map = {f"p{i+1}": player_names[i] for i in range(len(player_names))}
+table_show = table_show.rename(columns=rename_map)
 
 st.table(table_show)
